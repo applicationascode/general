@@ -7,16 +7,23 @@
 
     .Parameter Path
     The path to the main MicroApps location
+    
+    .Parameter DestinationPath
+    The destination path where the Citrix MicroApp mapp file will be stored
 
     .Example
-    Compile-MicroApp -Path ".\Source"
+    Compile-MicroApp -Path ".\Source" -DestinationPath "C:\Temp\"
 #>
 
 [CmdletBinding()]
 param (
     [Parameter(Mandatory=$true)]
     [string]
-    $Path
+    $Path,
+
+    [Parameter(Mandatory=$true)]
+    [string]
+    $DestinationPath
 )
 
 $microAppDirs = Get-ChildItem -Path  $Path | Where-Object {$_.PSIsContainer -eq $true}
@@ -40,14 +47,23 @@ if  ($microAppDirs.Count -eq 0) {
             if ($metaDataContent.vendor.ToLower() -eq "citrix") {
                 Write-Host "Compiling Citrix MicroApp: $($metaDataContent.title)."
                 
+                if (!(Test-Path -Path $DestinationPath)) {
+                    try {
+                        New-Item -Path $DestinationPath -ItemType Directory
+                    }
+                    catch {
+                        Write-Error "Something went wrong while creating the destination path $($DestinationPath): $($_.Exception.Message)"   
+                    }
+                }
+
                 try {
-                    Compress-Archive -Path $microAppDir -DestinationPath "$($Path)\$($microAppDir.Name).zip"
+                    Compress-Archive -Path $microAppDir -DestinationPath "$($DestinationPath)\$($microAppDir.Name).zip"
                 } catch {
                     Write-Error "Something went wrong while compressing the directory $($microAppDir.Name): $($_.Exception.Message)"
                 }
                 
                 try {
-                    Rename-Item -Path "$($Path)\$($microAppDir.Name).zip" -NewName "$($Path)\$($microAppDir.Name).mapp"
+                    Rename-Item -Path "$($DestinationPath)\$($microAppDir.Name).zip" -NewName "$($DestinationPath)\$($microAppDir.Name).mapp"
                     Write-Host "Citrix MicroApp $($microAppDir.Name) created successfully."
                 } catch {
                     Write-Error "Something went wrong while renaming the Citrix MicroApp $($microAppDir.Name): $($_.Exception.Message)"
